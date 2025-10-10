@@ -26,3 +26,11 @@ class UserResponse(UserBase):
 
     class Config:
         from_attribute = True  # Allows reading from SQLAlchemy models
+
+# Token schemas
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    email: Optional[str] = None
