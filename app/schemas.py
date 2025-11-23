@@ -34,3 +34,26 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     email: Optional[str] = None
+
+# Project schemas
+class ProjectBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+class ProjectCreate(ProjectBase):
+    pass
+
+class ProjectUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class ProjectResponse(ProjectBase):
+    id: int
+    owner_id: int
+    is_active: bool
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+class Config:
+    from_attributes = True
