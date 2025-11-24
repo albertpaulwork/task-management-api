@@ -55,3 +55,62 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         )
     access_token = auth.create_access_token(data={'sub': user.email})
     return {'access_token': access_token, 'token_type': 'bearer'}
+
+# Project endpoints
+@app.post('/projects/', response_model=schemas.ProjectResponse, status_code=status.HTTP_201_CREATED)
+def create_project(
+    project: schemas.ProjectCreate,
+    db: Session = Depends(get_db),
+    current_user: schemas.UserResponse = Depends(auth.get_current_user)
+):
+    return crud.create_project(db=db, project=project, owner_id=current_user.id)
+
+@app.get('/projects/', response_model=List[schemas.ProjectResponse])
+def get_projects(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: schemas.UserResponse = Depends(auth.get_current_user)
+):
+    projects = crud.get_projects(db=db, owner_id=current_user.id, skip=skip, limit=limit)
+    return projects
+
+@app.get('/projects/{project_id}', response_model=schemas.ProjectResponse)
+def get_project(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: schemas.UserResponse = Depends(auth.get_current_user)
+):
+    project = crud.get_project(db=db, project_id=project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail='Project not found')
+    if project.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail='Not authorized to access this project')
+    return project
+
+@app.put('/projects/{project_id}', response_model=schemas.ProjectResponse)
+def update_project(
+    project_id: int,
+    project: schemas.ProjectUpdate,
+    db: Session = Depends(get_db),
+    current_user: schemas.UserResponse = Depends(auth.get_current_user)
+):
+    db_project = crud.get_project(db=db, project_id=project_id)
+    if db_project is None:
+        raise HTTPException(status_code=404, detail='Project not found')
+    if db_project.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail='Not authorized to update this project')
+    return crud.update_project(db=db, project_id=project_id, project=project)
+    
+@app.delete('/projects/{project_id}', status_code=status.HTTP_204_NO_CONTENT)
+def delete_project(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: schemas.UserResponse = Depends(auth.get_current_user)
+):
+    db_project = crud.get_project(db=db, project_id=project_id)
+    if db_project is None:
+        raise HTTPException(status_code=404, detail='Project not found')
+    if db_project.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail='Not authorized to delete this project')
+    crud.delete_project(db=db, project_id=project_id)
