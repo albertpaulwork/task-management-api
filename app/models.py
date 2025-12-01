@@ -30,3 +30,24 @@ class Project(Base):
 
     # Relationship
     owner = relationship('User', back_populates='projects')
+    tasks = relationship('Task', back_populates='project')
+
+class Task(Base):
+    __tablename__ = 'tasks'
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    status = Column(String, default='todo') # todo, in_progress, done
+    priority = Column(String, default='medium') # low, medium, high
+    project_id = Column(Integer, ForeignKey('projects.id'), nullable=False)
+    assigned_to = Column(Integer, ForeignKey('users.id'), nullable=True)
+    created_by = Column(Integer, ForeignKey('users.id'), nullable=False)
+    due_date = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    project = relationship('Project', back_populates='tasks')
+    assignee = relationship('User', foreign_keys=[assigned_to])
+    creator = relationship('User', foreign_keys=[created_by])

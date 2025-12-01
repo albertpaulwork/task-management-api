@@ -70,3 +70,50 @@ def delete_project(db: Session, project_id: int):
         db.delete(db_project)
         db.commit()
     return db_project
+
+# Task CRUD operations
+def create_task(db: Session, task: schemas.TaskCreate, created_by: int):
+    db_task = models.Task(
+        title=task.title,
+        description=task.description,
+        status=task.status,
+        priority=task.priority,
+        project_id=task.project_id,
+        assigned_to=task.assigned_to,
+        created_by=created_by,
+        due_date=task.due_date
+    )
+    db.add(db_task)
+    db.commit()
+    db.refresh(db_task)
+    return db_task
+
+def get_task(db: Session, task_id: int):
+    return db.query(models.Task).filter(models.Task.id == task_id).first()
+
+def get_tasks_by_project(db: Session, project_id: int, skip: int = 0, limit: int = 100):
+    return db.query(models.Task).filter(
+        models.Task.project_id == project_id
+    ).offset(skip).limit(limit).all()
+
+def get_tasks_by_user(db: Session, user_id: int, skip: int = 0, limit: int = 100):
+    return db.query(models.Task).filter(
+        models.Task.assigned_to == user_id
+    ).offset(skip).limit(limit).all()
+
+def update_task(db: Session, task_id: int, task: schemas.TaskUpdate):
+    db_task = get_task(db, task_id)
+    if db_task:
+        update_data = task.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_task, key, value)
+        db.commit()
+        db.refresh(db_task)
+    return db_task
+
+def delete_task(db: Session, task_id: int):
+    db_task = get_task(db, task_id)
+    if db_task:
+        db.delete(db_task)
+        db.commit()
+    return db_task

@@ -2,6 +2,8 @@ from pydantic import BaseModel, EmailStr
 from datetime import datetime
 from typing import Optional
 
+# User schemas
+
 # Base User schema
 class UserBase(BaseModel):
     email: EmailStr
@@ -55,5 +57,37 @@ class ProjectResponse(ProjectBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
 
-class Config:
-    from_attributes = True
+    class Config:
+        from_attributes = True
+
+
+# Task schemas
+class TaskBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+    status: Optional[str] = 'todo'
+    priority: Optional[str] = 'medium'
+    due_date: Optional[datetime] = None
+
+class TaskCreate(TaskBase):
+    project_id: int
+    assigned_to: Optional[int] = None
+
+class TaskUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+    priority: Optional[str] = None
+    assigned_to: Optional[int] = None
+    due_date: Optional[datetime] = None
+
+class TaskResponse(TaskBase):
+    id: int
+    project_id: int
+    assigned_to: Optional[int] = None
+    created_by: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True

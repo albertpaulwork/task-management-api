@@ -114,3 +114,85 @@ def delete_project(
     if db_project.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail='Not authorized to delete this project')
     crud.delete_project(db=db, project_id=project_id)
+
+# Task endpoints
+@app.post('/task/', response_model=schemas.TaskResponse, status_code=status.HTTP_201_CREATED)
+def create_task(
+    task: schemas.TaskCreate,
+    db: Session = Depends(get_db),
+    current_user: schemas.UserResponse = Depends(auth.get_current_user)
+):
+    # Verify user owns the project
+    project = crud.get_project(db, task.project_id)
+    if not project or project.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail='Not authorized to add tasks to this project')
+    return crud.create_task(db=db, task=task, created_by=current_user.id)
+
+@app.get('/task/project/{project_id}', response_model=List[schemas.TaskResponse])
+def get_project_tasks(
+    project_id: int,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: schemas.UserResponse = Depends(auth.get_current_user)
+):
+    # Verify user owns the project
+    project = crud.get_project(db, project_id)
+    if not project or project.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail='Not authorized to view this project')
+    return crud.get_tasks_by_project(db, project_id=project_id, skip=skip, limit=limit)
+
+@app.get('/tasks/my-tasks', response_model=List[schemas.TaskResponse])
+def get_my_tasks(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: schemas.UserResponse = Depends(auth.get_current_user)
+):
+    return crud.get_tasks_by_user(db=db, user_id=current_user.id, skip=skip, limit=limit)
+
+@app.get('/tasks/{task_id}', response_model=schemas.TaskResponse)
+def get_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: schemas.UserResponse = Depends(auth.get_current_user)
+):
+    task = crud.get_task(db, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail='Task not found')
+    # Verify user owns the project
+    project = crud.get_project(db, task.project_id)
+    if project.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail='Not authorized to view this task')
+    return task
+
+@app.put('/task/{task_id}', response_model=schemas.TaskResponse)
+def update_task(
+    task_id: int,
+    task: schemas.TaskUpdate,
+    db: Session = Depends(get_db),
+    current_user: schemas.UserResponse = Depends(auth.get_current_user)
+):
+    db_task = crud.get_task(db, task_id)
+    if not db_task:
+        raise HTTPException(status_code=404, detail='Task not found')
+    # Verify user owns the project
+    project = crud.get_project(db, db_task.project_id)
+    if project.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail='Not authorized to update this task')
+    return crud.update_task(db=db, task_id=task_id, task=task)
+
+@app.delete('/tasks/{task_id}', status_code=status.HTTP_204_NO_CONTENT)
+def delete_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: schemas.UserResponse = Depends(auth.get_current_user)
+):
+    db_task = crud.get_task(db, task_id)
+    if not db_task:
+        raise HTTPException(status_code=404, detail='Task not found')
+    # Verify user owns the project
+    project = crud.get_project(db, db_task.project_id)
+    if project.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail='Not authorized to delete this task')
+    crud.delete_task(db=db, task_id=task_id)
