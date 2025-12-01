@@ -3,10 +3,10 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from app.database import get_db
-from app import crud, schemas
+from app import crud, schemas, models, auth
 
 from fastapi.security import OAuth2PasswordRequestForm
-from app import auth
+from typing import List, Optional
 
 app = FastAPI(title='Task Management API', version='1.0.0')
 
@@ -116,7 +116,7 @@ def delete_project(
     crud.delete_project(db=db, project_id=project_id)
 
 # Task endpoints
-@app.post('/task/', response_model=schemas.TaskResponse, status_code=status.HTTP_201_CREATED)
+@app.post('/tasks/', response_model=schemas.TaskResponse, status_code=status.HTTP_201_CREATED)
 def create_task(
     task: schemas.TaskCreate,
     db: Session = Depends(get_db),
@@ -128,9 +128,11 @@ def create_task(
         raise HTTPException(status_code=403, detail='Not authorized to add tasks to this project')
     return crud.create_task(db=db, task=task, created_by=current_user.id)
 
-@app.get('/task/project/{project_id}', response_model=List[schemas.TaskResponse])
+@app.get('/tasks/project/{project_id}', response_model=List[schemas.TaskResponse])
 def get_project_tasks(
     project_id: int,
+    status: Optional[str] = None,
+    priority: Optional[str] = None,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
@@ -140,16 +142,59 @@ def get_project_tasks(
     project = crud.get_project(db, project_id)
     if not project or project.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail='Not authorized to view this project')
-    return crud.get_tasks_by_project(db, project_id=project_id, skip=skip, limit=limit)
+    query = db.query(models.Task).filter(models.Task.project_id == project_id)
+
+    if status:
+        query = query.filter(models.Task.status == status)
+    if priority:
+        query = query.filter(models.Task.priority == priority)
+
+    return query.offset(skip).limit(limit).all()
+
+@app.get('/tasks/project/{project_id}/stats')
+def get_project_stats(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: schemas.UserResponse = Depends(auth.get_current_user)
+):
+    
+    # Verify user owns the project
+    project = crud.get_project(db, project_id)
+    if not project or project.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail='Not authorized to view this project')
+    
+    tasks = db.query(models.Task).filter(models.Task.project_id == project_id).all()
+
+    stats = {
+        'total_tasks': len(tasks),
+        'todo': len([t for t in tasks if t.status == 'todo']),
+        'in_progress': len([t for t in tasks if t.status == 'in_progress']),
+        'done': len([t for t in tasks if t.status == 'done']),
+        'high_priority': len([t for t in tasks if t.priority == 'high']),
+        'medium_priority': len([t for t in tasks if t.priority == 'medium']),
+        'low_priority': len([t for t in tasks if t.priority == 'low']),
+        'unassigned': len([t for t in tasks if t.assigned_to is None])
+    }
+
+    return stats
 
 @app.get('/tasks/my-tasks', response_model=List[schemas.TaskResponse])
 def get_my_tasks(
+    status: Optional[str] = None,
+    priority: Optional[str] = None,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
     current_user: schemas.UserResponse = Depends(auth.get_current_user)
 ):
-    return crud.get_tasks_by_user(db=db, user_id=current_user.id, skip=skip, limit=limit)
+    query = db.query(models.Task).filter(models.Task.assigned_to == current_user.id)
+    
+    if status:
+        query = query.filter(models.Task.status == status)
+    if priority:
+        query = query.filter(models.Task.priority == priority)
+
+    return query.offset(skip).limit(limit).all()
 
 @app.get('/tasks/{task_id}', response_model=schemas.TaskResponse)
 def get_task(
@@ -166,7 +211,7 @@ def get_task(
         raise HTTPException(status_code=403, detail='Not authorized to view this task')
     return task
 
-@app.put('/task/{task_id}', response_model=schemas.TaskResponse)
+@app.put('/tasks/{task_id}', response_model=schemas.TaskResponse)
 def update_task(
     task_id: int,
     task: schemas.TaskUpdate,
