@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
 from typing import Optional
+from app.enums import TaskStatus, TaskPriority
 
 # User schemas
 
@@ -65,8 +66,8 @@ class ProjectResponse(ProjectBase):
 class TaskBase(BaseModel):
     title: str
     description: Optional[str] = None
-    status: Optional[str] = 'todo'
-    priority: Optional[str] = 'medium'
+    status: Optional[TaskStatus] = TaskStatus.TODO
+    priority: Optional[TaskPriority] = TaskPriority.MEDIUM
     due_date: Optional[datetime] = None
 
 class TaskCreate(TaskBase):
@@ -76,8 +77,8 @@ class TaskCreate(TaskBase):
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
-    status: Optional[str] = None
-    priority: Optional[str] = None
+    status: Optional[TaskStatus] = None
+    priority: Optional[TaskPriority] = None
     assigned_to: Optional[int] = None
     due_date: Optional[datetime] = None
 
