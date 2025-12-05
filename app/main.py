@@ -230,3 +230,11 @@ def delete_task(
     if project.owner_id != current_user.id:
         raise ForbiddenException('Not authorized to delete this task')
     crud.delete_task(db=db, task_id=task_id)
+
+@app.get('/health')
+def health_check():
+    return {
+        'status': 'healthy',
+        'service': 'Task Management API',
+        'version': '1.0.0'
+    }
