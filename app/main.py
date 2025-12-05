@@ -7,6 +7,7 @@ from app import crud, schemas, models, auth
 
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import List, Optional
+from app.exceptions import NotFoundException, UnauthorizedException, ForbiddenException, BadRequestException
 
 app = FastAPI(title='Task Management API', version='1.0.0')
 
@@ -18,15 +19,9 @@ def read_root():
 def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     # Check if user already exists
     if crud.get_user_by_email(db, email=user.email):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Email already registered'
-        )
+        raise BadRequestException('Email already registered')
     if crud.get_user_by_username(db, username=user.username):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Username already taken'
-        )
+        raise BadRequestException('Username already taken')
     return crud.create_user(db=db, user=user)
 
 @app.get('/users/', response_model=List[schemas.UserResponse])
@@ -38,21 +33,15 @@ def get_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), cu
 def get_user(user_id: int, db: Session = Depends(get_db), current_user: schemas.UserResponse = Depends(auth.get_current_user)):
     user = crud.get_user_by_id(db=db, user_id=user_id)
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail='User not found'
-        )
+        raise NotFoundException('User not found')
     return user
 
 @app.post('/auth/login', response_model=schemas.Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = auth.authenticate_user(db, email=form_data.username, password=form_data.password)
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail='Incorrect email or password',
-            headers={'WWW-Authenticate': 'Bearer'}
-        )
+        raise UnauthorizedException('Incorrect email or password')
+    
     access_token = auth.create_access_token(data={'sub': user.email})
     return {'access_token': access_token, 'token_type': 'bearer'}
 
@@ -83,9 +72,9 @@ def get_project(
 ):
     project = crud.get_project(db=db, project_id=project_id)
     if project is None:
-        raise HTTPException(status_code=404, detail='Project not found')
+        raise NotFoundException('Project not found')
     if project.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail='Not authorized to access this project')
+        raise ForbiddenException('Forbidden to access this project')
     return project
 
 @app.put('/projects/{project_id}', response_model=schemas.ProjectResponse)
@@ -97,9 +86,9 @@ def update_project(
 ):
     db_project = crud.get_project(db=db, project_id=project_id)
     if db_project is None:
-        raise HTTPException(status_code=404, detail='Project not found')
+        raise NotFoundException('Project not found')
     if db_project.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail='Not authorized to update this project')
+        raise ForbiddenException('Forbidden to update this project')
     return crud.update_project(db=db, project_id=project_id, project=project)
     
 @app.delete('/projects/{project_id}', status_code=status.HTTP_204_NO_CONTENT)
@@ -110,9 +99,9 @@ def delete_project(
 ):
     db_project = crud.get_project(db=db, project_id=project_id)
     if db_project is None:
-        raise HTTPException(status_code=404, detail='Project not found')
+        raise NotFoundException('Project not found')
     if db_project.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail='Not authorized to delete this project')
+        raise ForbiddenException('Forbidden to delete this project')
     crud.delete_project(db=db, project_id=project_id)
 
 # Task endpoints
@@ -125,7 +114,7 @@ def create_task(
     # Verify user owns the project
     project = crud.get_project(db, task.project_id)
     if not project or project.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail='Not authorized to add tasks to this project')
+        raise ForbiddenException('Not authorized to add tasks to this project')
     return crud.create_task(db=db, task=task, created_by=current_user.id)
 
 @app.get('/tasks/project/{project_id}', response_model=List[schemas.TaskResponse])
@@ -141,7 +130,7 @@ def get_project_tasks(
     # Verify user owns the project
     project = crud.get_project(db, project_id)
     if not project or project.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail='Not authorized to view this project')
+        raise ForbiddenException('Forbidden to view this project')
     query = db.query(models.Task).filter(models.Task.project_id == project_id)
 
     if status:
@@ -161,7 +150,7 @@ def get_project_stats(
     # Verify user owns the project
     project = crud.get_project(db, project_id)
     if not project or project.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail='Not authorized to view this project')
+        raise ForbiddenException('Forbidden to view this project')
     
     tasks = db.query(models.Task).filter(models.Task.project_id == project_id).all()
 
@@ -204,11 +193,11 @@ def get_task(
 ):
     task = crud.get_task(db, task_id)
     if not task:
-        raise HTTPException(status_code=404, detail='Task not found')
+        raise NotFoundException('Task not found')
     # Verify user owns the project
     project = crud.get_project(db, task.project_id)
     if project.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail='Not authorized to view this task')
+        raise ForbiddenException('Forbidden to view this task')
     return task
 
 @app.put('/tasks/{task_id}', response_model=schemas.TaskResponse)
@@ -220,11 +209,11 @@ def update_task(
 ):
     db_task = crud.get_task(db, task_id)
     if not db_task:
-        raise HTTPException(status_code=404, detail='Task not found')
+        raise NotFoundException('Task not found')
     # Verify user owns the project
     project = crud.get_project(db, db_task.project_id)
     if project.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail='Not authorized to update this task')
+        raise ForbiddenException('Forbidden to update this task')
     return crud.update_task(db=db, task_id=task_id, task=task)
 
 @app.delete('/tasks/{task_id}', status_code=status.HTTP_204_NO_CONTENT)
@@ -235,9 +224,9 @@ def delete_task(
 ):
     db_task = crud.get_task(db, task_id)
     if not db_task:
-        raise HTTPException(status_code=404, detail='Task not found')
+        raise NotFoundException('Task not found')
     # Verify user owns the project
     project = crud.get_project(db, db_task.project_id)
     if project.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail='Not authorized to delete this task')
+        raise ForbiddenException('Not authorized to delete this task')
     crud.delete_task(db=db, task_id=task_id)
