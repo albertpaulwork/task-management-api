@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 from app.main import app
+import random
 
 client = TestClient(app)
 
@@ -7,25 +8,28 @@ def test_create_user():
     """
     Test user registration
     """
+    random_num = random.randint(1000, 9999)
+
     response = client.post(
         '/users',
         json={
-            'email': 'newtest@email.com',
-            'username': 'newtestuser',
+            'email': f'newtest{random_num}@email.com',
+            'username': f'newtestuser{random_num}',
             'password': 'newtestpass'
         }
     )
 
     assert response.status_code == 201
     data = response.json()
-    assert data['email'] == 'newtest@email.com'
-    assert data['username'] == 'newtestuser'
+    assert data['email'] == f'newtest{random_num}@email.com'
+    assert data['username'] == f'newtestuser{random_num}'
     assert 'id' in data
 
 def test_create_duplicate_user():
     """
     Test duplicate email registration fails
     """
+    
     # First user
     client.post(
         '/users/',
@@ -51,6 +55,7 @@ def test_create_duplicate_user():
 
 def test_login():
     """Test user login"""
+
     # Create user first
     client.post(
         '/users/',
