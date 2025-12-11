@@ -26,11 +26,47 @@ A production-ready RESTful API built with FastAPI for managing projects and task
 
 ## 📋 Prerequisites
 
-- Python 3.12.0
+- Python 3.8+
 - PostgreSQL
 - pip and virtualenv
 
 ## ⚙️ Installation & Setup
+
+### Option 1: Using Docker (Recommended)
+
+1. **Clone the repository**
+```bash
+git clone https://github.com/albertpaulwork/task-management-api
+cd task_management_api
+```
+
+2. **Make sure Docker Desktop is running**
+
+3. **Start the application with Docker Compose**
+```bash
+docker-compose up --build
+```
+
+4. **Run database migrations** (in a new terminal)
+```bash
+docker-compose exec web alembic upgrade head
+```
+
+5. **Access the API**
+- API: `http://localhost:8000`
+- Interactive Docs: `http://localhost:8000/docs`
+
+**To stop the containers:**
+```bash
+docker-compose down
+```
+
+**To remove all data (including database):**
+```bash
+docker-compose down -v
+```
+
+### Option 2: Local Development Setup
 
 1. **Clone the repository**
 ```bash
@@ -211,7 +247,7 @@ task_management_api/
 
 Run the test suite:
 ```bash
-pytest
+pytest tests/ -v
 ```
 
 Run with coverage:
@@ -219,17 +255,72 @@ Run with coverage:
 pytest --cov=app tests/
 ```
 
-## 🚀 Deployment
+**Test Results:**
+- ✅ 13/13 tests passing
+- Coverage: Authentication, Projects, Tasks
+- All CRUD operations validated
 
-### Using Docker (Coming Soon)
+## 🐳 Docker
+
+### Docker Commands
+
+**Build and start containers:**
+```bash
+docker-compose up --build
+```
+
+**Run in detached mode (background):**
 ```bash
 docker-compose up -d
 ```
 
-### Manual Deployment
-1. Set production environment variables
-2. Run database migrations
-3. Deploy to your preferred platform (Render, Railway, Heroku)
+**View logs:**
+```bash
+docker-compose logs -f
+```
+
+**Stop containers:**
+```bash
+docker-compose down
+```
+
+**Remove volumes (deletes database data):**
+```bash
+docker-compose down -v
+```
+
+**Run migrations in Docker:**
+```bash
+docker-compose exec web alembic upgrade head
+```
+
+**Access container shell:**
+```bash
+docker-compose exec web bash
+```
+
+## 🚀 Deployment
+
+### Docker Deployment
+
+This project includes Docker support for easy deployment.
+
+**Prerequisites:**
+- Docker and Docker Compose installed
+- PostgreSQL container included in docker-compose.yml
+
+**Deploy:**
+```bash
+docker-compose up -d
+docker-compose exec web alembic upgrade head
+```
+
+### Cloud Deployment (Coming Soon)
+
+Deployment guides for:
+- Render
+- Railway  
+- Heroku
 
 ## 🔒 Security Features
 
@@ -251,7 +342,7 @@ MIT License - feel free to use this project for learning purposes.
 ## 👤 Author
 
 **Albert Paul**
-- GitHub: [@albertpaulwork](https://github.com/albertpaulwork)
+- GitHub: [@albertpaulwork](https://github.com/albertpaulwork/)
 - LinkedIn: [albertpaulwork](https://www.linkedin.com/in/albertpaulwork/)
 
 ## 🙏 Acknowledgments
